@@ -10,6 +10,7 @@ import DPlayer from "dplayer";
 
 import { useRef, useState, useEffect } from "react";
 import { Form, Radio, Switch, Slider, message, Spin } from "antd";
+import { clearWebGLContext } from "@tensorflow/tfjs-backend-webgl/dist/canvas_util";
 
 
 
@@ -23,6 +24,7 @@ const [isMaskOpen,setIsMaskOpen] = useState(true)
 const [loading,setLoading] = useState(true)
 
 const dplayer = useRef(null)
+const container = useRef(null)
 const segmenter = useRef(null)
 const animation = useRef(null)
 
@@ -46,9 +48,6 @@ async function bodySegmentationInit(){
       runtime:'mediapipe',
       modelType:'genernal', // or landscape
       solutionPath:'https://unpkg.com/@mediapipe/selfie_segmentation', // 不写可能会用不了这个库
-      danmaku:{
-
-      }
     }
     segmenter.current = await bodySegmentation.createSegmenter(model,segmenterConfig)
  
@@ -64,23 +63,24 @@ async function bodySegmentationInit(){
 // 播放器初始化
   async function dplayerInit(){
   dplayer.current = new DPlayer({
-    container:document.getElementById("container"),
+    container:container.current,
     loop:true,
     video:{
       url: "https://dcdn.it120.cc/2022/11/04/87b7b5af-476c-4d2b-ae90-36724d66a407.mp4"
     },
-
+    danmaku:true,
   })
+  dplayer.current.video.setAttribute('crossorigin', 'anonymous') // /在发送跨域请求时不携带凭证（credential）信息 这里不写的话 canvas调用getImageData会报跨域的错误
   await segmenter.current?.dispose() //从内存中释放基础模型。
   await bodySegmentationInit()
  
 
   dplayer.current.on('play',async ()=>{
- 
+    animation.current = window.requestAnimationFrame(recognition)
   })
 
   dplayer?.current?.on('pause',()=>{
-   
+    cancelAnimationFrame(animation.current)
   })
 }
 
@@ -139,67 +139,73 @@ function imgLoad(src){
   })
 }
 
-// 识别
-async function recognition(){
+function randomDanmaku() {
+  const danmaku = ["时 隔 四 年 依 然 经 典", "小小房间竟然人才辈出，实在是恐怖如斯", "《有生之年看到原版》", "以前的鲲鲲充满了自信和笑容", "梦开始的地方", "1.自我介绍", "这短暂的一分钟养活了多少up主（doge）", "万 恶 之 源", "《开 始 吟 唱》", "《名场面》", "《music》", "《经典咏流传》", "非物质文化遗产", "《文艺复兴》", "《白 带 异 常》", "梦开始的地方，我的梦回来了", "每一帧都是经典", "每一帧都是表情包诶", "《梦开始的地方》", "5.优雅转身", "前 方 高 能", "准备铁山靠", "《铁山靠》", "招式3:《铁 山 靠》", "坤法第一式：铁山靠", "小秘密：随便一帧都是经典画面", "《白鹤亮翅》", "跳水00:40", "《 老 肩 巨 滑 》", "《每天一遍，精神百倍》", "优雅，真的是优雅", "《经典永流传》", "《垂直握把》", "《起舞弄清影》", "每时每刻打开都有人在看系列", "《护裆派》", "《让我蠢蠢欲动》", "᭙ᦔꪀꪑᦔ，​", "这种感觉我从未有Cause I Got A Cush On You Who You", "武当（档）派", "爷不知道就他笑死了多少无辜的生命", "《国家宝藏》之家禽", "《无效定语从句》", "卧槽，每一帧都是万恶之源", "“鳖”", "每日一遍", "嘎子偷狗时代考察", "《亡之音》", "看见这个头型我就想笑", "最后亿遍", "期待的话，请多多为我投票吧！", "《作词作曲》", "你干嘛∽哈哈～哎呦", "糖果超甜", "笑死我了哈哈哈哈", "你是我的我是你的谁", "原版都这么滑稽哈哈哈", "你不要过来！！！", "《啥时候都有人》", "我的口头禅"] || [new Date().toLocaleString(), '测试测试测试测试测试测试'];//弹幕文字
+  const colors = ['#ffffff', '#ffffff', '#ffffff', '#ffffff', '#e54256', '#ffe133', '#64DD17', '#D500F9'];
+  const types = ['top','bottom','right'];
 
-  // const subtitles_container = segmenter.current && dplayer.current && dplayer.current.querySelector(".dplayer-danmaku")
-  // try{
-  //   if(segmenter.current && isMaskOpen){
-  //     const canvas = document.createElement("canvas")
-  //     const context = canvas.getContext('2d')
-
-  //     // 压缩视频
-  //     const imageData = await compress(dplayer.current.video)
-      
-  //     const segmentationConfig = {
-  //       flipHorizontal: false,
-  //       multiSegmentation: false,
-  //       segmentBodyParts: true,
-  //       segmentationThreshold: 1,
-  //     }
-  //     const people = await segmenter.current.segmentPeople(imageData,segmentationConfig)
-      
-  //     // 官网默认的配置
-  //     const foregroundColor = { r: 0, g: 0, b: 0, a: 0 }; //用于可视化属于人的像素的前景色 (r,g,b,a)。
-  //     const backgroundColor = { r: 0, g: 0, b: 0, a: 255 }; //用于可视化不属于人的像素的背景颜色 (r,g,b,a)。
-  //     const drawContour = false; //是否在每个人的分割蒙版周围绘制轮廓。
-  //     const foregroundThresholdProbability = 0.3
-  //     const backgroundDarkeningMask = await bodySegmentation.toBinaryMask(people,foregroundColor,backgroundColor,drawContour,foregroundThresholdProbability)
-    
-  //     canvas.width = backgroundDarkeningMask.width
-  //     canvas.height = backgroundDarkeningMask.height
-  //     context.putImageData(backgroundDarkeningMask,0,0)
-  //     const base64Image = canvas.toDataURL("image/png") // 黑白蒙层
-  //     setMaskImageUrl(base64Image)
-  //     const { width, height } = dplayer.current.video.getBoundingClientRect()
-  //     //加载图片到缓存中（如果不加载到缓存中，会导致mask-image失效，因为图片还没有加载到页面上，新的图片已经添加上去了，会导致图片一直是个空白）
-  //     await imgLoad(base64Image)
-  //     subtitles_container.style = `-webkit-mask-image: url(${base64Image});-webkit-mask-size: ${width}px ${height}px;`
-  //     window.requestAnimationFrame(recognition)
-  //   }
-  //   else{
-  //     subtitles_container.style = ''
-     
-  //   }
-
-  // }catch(e){
-  //   message.error(e)
-  // }
-}
-
-
-// 绘制弹幕
-function randomDanmaku(){
-  const danmu = danmaku
-  const colors = ['#ffffff', '#fffb8f', '#5b8c00', '#d3adf7' , '#c41d7f' ,'#e54256', '#ffe133', '#64DD17', '#D500F9'];
-  const types = ['top','bottom', 'rigth']
-  const randomItem = arr => arr[Math.random()* arr?.length | 0 ] // 任何数按位或都是这个数的本身
-  dplayer?.current?.danmaku?.draw({
-    text:randomItem(danmu),
-    color:randomItem(colors),
-    type:randomItem(types)
+  const randomItem = arr => arr[Math.random() * arr.length | 0];
+  dplayer.current?.danmaku?.draw({
+    text: randomItem(danmaku),
+    color: randomItem(colors),
+    type: randomItem(types), //滚动
   })
 }
+
+// 识别
+async function recognition(){
+  
+  try{
+    const subtitles_container = container.current?.querySelector(".dplayer-danmaku")
+    randomDanmaku()
+    if(segmenter.current && isMaskOpen){
+      const canvas = document.createElement("canvas")
+      const context = canvas.getContext('2d')
+
+     // 压缩视频
+      const imageData = await compress(dplayer.current.video)
+      
+
+      const segmentationConfig = {
+        flipHorizontal: false,
+        multiSegmentation: false,
+        segmentBodyParts: true,
+        segmentationThreshold: 1,
+      }
+      const people = await segmenter.current.segmentPeople(imageData,segmentationConfig)
+      
+      // 官网默认的配置
+      const foregroundColor = { r: 0, g: 0, b: 0, a: 0 }; //用于可视化属于人的像素的前景色 (r,g,b,a)。
+      const backgroundColor = { r: 0, g: 0, b: 0, a: 255 }; //用于可视化不属于人的像素的背景颜色 (r,g,b,a)。
+      const drawContour = false; //是否在每个人的分割蒙版周围绘制轮廓。
+      const foregroundThresholdProbability = 0.3
+      const backgroundDarkeningMask = await bodySegmentation.toBinaryMask(people,foregroundColor,backgroundColor,drawContour,foregroundThresholdProbability)
+    
+      canvas.width = backgroundDarkeningMask.width
+      canvas.height = backgroundDarkeningMask.height
+      context.putImageData(backgroundDarkeningMask,0,0)
+      const base64Image = canvas.toDataURL("image/png") // 黑白蒙层
+      setMaskImageUrl(base64Image)
+      const { width, height } = dplayer.current.video.getBoundingClientRect()
+      
+      //加载图片到缓存中（如果不加载到缓存中，会导致mask-image失效，因为图片还没有加载到页面上，新的图片已经添加上去了，会导致图片一直是个空白）
+      await imgLoad(base64Image)
+
+      subtitles_container.style = `-webkit-mask-image: url(${base64Image});-webkit-mask-size: ${width}px ${height}px;`
+      animation.current = requestAnimationFrame(recognition)
+    }
+    else{
+
+      cancelAnimationFrame(animation.current)
+    }
+
+  }catch(e){
+    message.error(e)
+  }
+}
+
+
+
 
   return (
     <div className="App">
@@ -207,7 +213,7 @@ function randomDanmaku(){
         {loading && <div className="loading-container">
           <Spin spinning={loading} />
         </div>}
-        <div id="container"  style={{maxWidth:'150px'}}></div>
+        <div ref={container} style={{maxWidth:'150px'}}></div>
         <br />
 
         <Form labelCol={{ span: 6 }}
