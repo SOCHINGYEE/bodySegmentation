@@ -213,7 +213,7 @@ async function recognition(){
         {loading && <div className="loading-container">
           <Spin spinning={loading} />
         </div>}
-        <div ref={container} style={{maxWidth:'150px'}}></div>
+        <div ref={container} style={{maxWidth:'550px'}}></div>
         <br />
 
         <Form labelCol={{ span: 6 }}

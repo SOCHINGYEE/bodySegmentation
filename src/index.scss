@@ -1,0 +1,18 @@
+
+.barrage{
+  width: 100vw;
+  height: 100vh;
+  position: relative;
+  #myCanvas{
+    position: absolute;
+    z-index: 2;
+    width: 565px;
+    height: 377px;
+    top: 0;
+    left: 0;
+  }
+  img{
+    width: 565px;
+    height: 377px;
+  }
+}
